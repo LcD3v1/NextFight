@@ -1,25 +1,35 @@
 # Mobile
 
-Aplicativo NextFight para iOS e Android, desenvolvido em Flutter.
+Aplicativo NextFight para Android e iOS, desenvolvido em Flutter com arquitetura feature-first.
 
-## Responsabilidade
+## Fundação
 
-Este módulo será responsável pela experiência do usuário, navegação, consumo da API, atualizações em tempo real, armazenamento seguro de credenciais e notificações push.
+- Riverpod para estado e injeção de dependências;
+- GoRouter para navegação declarativa;
+- Dio para HTTP;
+- Freezed e `json_serializable` para modelos imutáveis;
+- Secure Storage para credenciais futuras;
+- Firebase Messaging para push após configuração oficial por ambiente;
+- tema escuro e estados reutilizáveis de loading, vazio, erro, offline, sucesso e dado desatualizado.
 
-## Arquitetura prevista
+## Ambientes
 
-A organização será feature-first, com áreas compartilhadas em `app` e `core`. Cada feature terá limites explícitos entre apresentação, aplicação, domínio e acesso a dados, sem abstrações que não tragam benefício concreto.
+Valores são fornecidos em compile time:
 
-As decisões obrigatórias estão em `docs/09-MOBILE.md`: Riverpod, GoRouter, Dio, Freezed, `json_serializable`, Firebase Messaging e Secure Storage.
+```powershell
+flutter run --dart-define=APP_ENV=local --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
+```
 
-## Estado atual
+Ambientes aceitos: `local`, `development`, `staging` e `production`. No emulador Android, `10.0.2.2` representa a máquina host.
 
-A aplicação Flutter ainda não foi inicializada. Isso pertence à etapa “Fundação do mobile” de `docs/19-INITIAL-CODEX-PROMPTS.md`; esta etapa cria apenas os limites do monorepo.
-
-Quando inicializado, o módulo deverá ser validado com:
+## Qualidade
 
 ```powershell
 flutter pub get
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
+flutter build apk --debug
 ```
+
+Não há telas finais nem dados falsos nesta fundação. Credenciais Firebase devem ser geradas para cada ambiente antes de inicializar push notifications.
