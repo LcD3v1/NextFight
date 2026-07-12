@@ -1,6 +1,36 @@
 name: nextfight
 
 services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NEXTFIGHT_ENV: ${NEXTFIGHT_ENV:-local}
+      NEXTFIGHT_LOG_LEVEL: ${NEXTFIGHT_LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nextfight}:${POSTGRES_PASSWORD:-local-nextfight-password}@postgres:5432/${POSTGRES_DB:-nextfight}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - nextfight
+
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped

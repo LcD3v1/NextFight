@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Este guia descreve a execução local do monorepo. Nesta fase, somente PostgreSQL e Redis possuem serviços executáveis; aplicações serão adicionadas nas etapas de fundação correspondentes.
+Este guia descreve a execução local do monorepo. PostgreSQL, Redis e o backend FastAPI possuem serviços executáveis. Mobile e admin serão adicionados nas etapas de fundação correspondentes.
 
 ## Requisitos
 
@@ -33,7 +33,7 @@ docker compose up -d
 docker compose ps
 ```
 
-O PostgreSQL ficará disponível em `localhost:5432` e o Redis em `localhost:6379`, salvo alteração no `.env`.
+O backend ficará disponível em `localhost:8000`, o PostgreSQL em `localhost:5432` e o Redis em `localhost:6379`, salvo alteração no `.env`.
 
 ## Verificar saúde
 
@@ -43,6 +43,14 @@ docker compose exec redis redis-cli ping
 ```
 
 O primeiro comando deve informar que o PostgreSQL aceita conexões. O segundo deve retornar `PONG`.
+
+Confirme também a prontidão do backend:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/health/ready
+```
+
+A resposta deve indicar `healthy` para PostgreSQL e Redis.
 
 ## Logs
 

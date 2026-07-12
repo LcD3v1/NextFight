@@ -1,0 +1,1 @@
+"""NextFight backend package."""

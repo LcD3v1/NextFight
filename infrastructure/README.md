@@ -10,14 +10,14 @@ Os diretórios em `environments/` reservam limites explícitos para `local`, `de
 
 ## Estado atual
 
-O arquivo `compose.yaml` na raiz disponibiliza PostgreSQL e Redis com persistência, rede isolada e health checks. Serviços de aplicação serão adicionados quando backend e admin tiverem fundações executáveis, evitando imagens e comandos fictícios.
+O arquivo `compose.yaml` na raiz disponibiliza o backend FastAPI, PostgreSQL e Redis com persistência, rede isolada e health checks. O admin será adicionado quando possuir uma fundação executável, evitando imagens e comandos fictícios.
 
 ## Operação local
 
 ```powershell
 docker compose up -d
 docker compose ps
-docker compose logs -f postgres redis
+docker compose logs -f backend postgres redis
 docker compose down
 ```
 

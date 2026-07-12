@@ -33,7 +33,6 @@ coverage.xml
 htmlcov/
 .venv/
 venv/
-backend/.python-version
 
 # Node.js / React
 node_modules/

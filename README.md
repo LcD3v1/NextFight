@@ -23,7 +23,7 @@ O PostgreSQL é a fonte de verdade. Redis é usado somente para dados efêmeros,
 - Python 3.12+, para o backend;
 - Node.js LTS, para o painel administrativo.
 
-Flutter, Python e Node.js só serão necessários quando as respectivas fundações forem inicializadas. Nesta etapa, a execução local disponibiliza PostgreSQL e Redis.
+O backend já possui fundação executável em FastAPI. Flutter e Node.js serão necessários quando as fundações do mobile e do painel administrativo forem inicializadas.
 
 ## Início rápido
 
@@ -47,6 +47,7 @@ Flutter, Python e Node.js só serão necessários quando as respectivas fundaç�
    docker compose ps
    docker compose exec postgres pg_isready -U nextfight -d nextfight
    docker compose exec redis redis-cli ping
+   Invoke-RestMethod http://localhost:8000/health/ready
    ```
 
 5. Encerre os contêineres sem apagar os dados:
