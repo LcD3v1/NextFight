@@ -236,8 +236,15 @@ class AlertDelivery(EntityMixin, Base):
     channel: Mapped[str] = mapped_column(String(32))
     idempotency_key: Mapped[str] = mapped_column(String(160), unique=True)
     status: Mapped[str] = mapped_column(String(32), index=True)
+    title: Mapped[str] = mapped_column(String(180))
+    body: Mapped[str] = mapped_column(String(500))
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
     provider_message_id: Mapped[str | None] = mapped_column(String(255))
-    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_code: Mapped[str | None] = mapped_column(String(80))
 

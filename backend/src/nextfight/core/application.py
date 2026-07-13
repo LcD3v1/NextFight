@@ -16,6 +16,7 @@ from nextfight.core.middleware.request_id import RequestIdMiddleware
 from nextfight.infrastructure.cache.client import create_redis_client
 from nextfight.infrastructure.database.session import create_database_engine
 from nextfight.infrastructure.messaging.outbox import OutboxDispatcher
+from nextfight.infrastructure.notifications.worker import PushDeliveryWorker
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -40,12 +41,21 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         outbox_task = asyncio.create_task(
             dispatcher.run(application.state.outbox_stop), name="outbox-dispatcher"
         )
+        application.state.push_stop = asyncio.Event()
+        push_worker = PushDeliveryWorker(
+            application.state.database_engine, resolved_settings
+        )
+        push_task = asyncio.create_task(
+            push_worker.run(application.state.push_stop), name="push-delivery-worker"
+        )
         logger.info("application_started", environment=resolved_settings.environment)
         try:
             yield
         finally:
             application.state.outbox_stop.set()
-            await outbox_task
+            application.state.push_stop.set()
+            await asyncio.gather(outbox_task, push_task)
+            await push_worker.close()
             await application.state.redis.aclose()
             await application.state.database_engine.dispose()
             logger.info("application_stopped")

@@ -87,3 +87,12 @@ Migrações devem ser revisadas antes de execução e nunca devem depender da im
 A migração inicial cria usuários, dispositivos, organizações, atletas, eventos, lutas, timeline de estados, alertas, entregas, previsões, alterações de evento, assinaturas e logs de auditoria. IDs são UUID, datas usam `timestamptz`, payloads externos usam JSONB e os estados críticos são enums PostgreSQL.
 
 Repositories não executam commit implicitamente. Casos de uso controlam a transação, permitindo atomicidade entre múltiplas alterações e publicação posterior de eventos de domínio.
+
+## Notificações push
+
+O worker de entrega inicia junto com a API e consome a fila persistida em
+`alert_deliveries`. Android usa o SDK oficial Firebase Admin; iOS usa APNs HTTP/2
+com autenticação por token. Configure `FCM_CREDENTIALS_PATH` e as variáveis
+`APNS_*` descritas no `.env.example`. Credenciais nunca devem ser armazenadas no
+repositório. Em produção, a aplicação recusa iniciar sem ambos os provedores
+configurados.

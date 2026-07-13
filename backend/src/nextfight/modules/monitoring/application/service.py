@@ -1,6 +1,7 @@
 """Hybrid fight-state ingestion and prediction orchestration."""
 
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from typing import Any
 from uuid import UUID
 
@@ -9,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nextfight.core.config import Settings
 from nextfight.infrastructure.database.entities import (
+    Alert,
+    AlertDelivery,
+    Device,
     Event,
     EventStatus,
     Fight,
@@ -16,6 +20,7 @@ from nextfight.infrastructure.database.entities import (
     FightStatus,
     OutboxEvent,
     Prediction,
+    User,
 )
 from nextfight.modules.monitoring.domain.prediction import predict_start
 from nextfight.modules.monitoring.domain.state_machine import (
@@ -96,7 +101,15 @@ class MonitoringService:
             occurred_at=occurred_at,
         )
         self._session.add(observation)
-        await self._advance_card(fight)
+        await self._enqueue_alerts(fight, target, idempotency_key, occurred_at)
+        advanced = await self._advance_card(fight)
+        if advanced is not None:
+            await self._enqueue_alerts(
+                advanced,
+                FightStatus.NEXT,
+                f"{idempotency_key}:next",
+                occurred_at,
+            )
         await self._recalculate_predictions(fight.event_id, occurred_at)
         self._session.add(
             OutboxEvent(
@@ -141,13 +154,13 @@ class MonitoringService:
             )
         )
 
-    async def _advance_card(self, current: Fight) -> None:
+    async def _advance_card(self, current: Fight) -> Fight | None:
         if current.status not in {
             FightStatus.COMPLETED,
             FightStatus.CANCELLED,
             FightStatus.NO_CONTEST,
         }:
-            return
+            return None
         upcoming = await self._session.scalar(
             select(Fight)
             .where(
@@ -162,6 +175,65 @@ class MonitoringService:
         if upcoming is not None:
             upcoming.status = FightStatus.NEXT
             upcoming.version += 1
+        return upcoming
+
+    async def _enqueue_alerts(
+        self,
+        fight: Fight,
+        target: FightStatus,
+        transition_key: str,
+        now: datetime,
+    ) -> None:
+        trigger_by_state = {
+            FightStatus.NEXT: "next_fight",
+            FightStatus.WALKOUTS: "walkouts",
+        }
+        trigger = trigger_by_state.get(target)
+        if trigger is None:
+            return
+        rows = (
+            await self._session.execute(
+                select(Alert, Device, User)
+                .join(Device, Device.user_id == Alert.user_id)
+                .join(User, User.id == Alert.user_id)
+                .where(
+                    Alert.fight_id == fight.id,
+                    Alert.trigger_type == trigger,
+                    Alert.status == "active",
+                    Device.notifications_enabled.is_(True),
+                )
+            )
+        ).all()
+        for alert, device, user in rows:
+            digest = sha256(
+                f"{transition_key}:{alert.id}:{device.id}".encode()
+            ).hexdigest()
+            delivery_key = f"alert:{digest}"
+            if await self._session.scalar(
+                select(AlertDelivery.id).where(
+                    AlertDelivery.idempotency_key == delivery_key
+                )
+            ):
+                continue
+            title, body = _localized_message(user.locale, target)
+            self._session.add(
+                AlertDelivery(
+                    alert_id=alert.id,
+                    device_id=device.id,
+                    channel="push",
+                    idempotency_key=delivery_key,
+                    status="pending",
+                    title=title,
+                    body=body,
+                    data={
+                        "type": f"fight.{target.value}",
+                        "fight_id": str(fight.id),
+                        "event_id": str(fight.event_id),
+                    },
+                    attempts=0,
+                    next_attempt_at=now,
+                )
+            )
 
     async def _recalculate_predictions(
         self, event_id: UUID, reference_at: datetime
@@ -224,3 +296,20 @@ class MonitoringService:
             return
         if occurred_at < protected_until:
             raise ManualOverrideActiveError
+
+
+def _localized_message(locale: str, state: FightStatus) -> tuple[str, str]:
+    portuguese = locale.casefold().startswith("pt")
+    messages = {
+        FightStatus.NEXT: (
+            ("Sua luta é a próxima", "A luta anterior terminou. Prepare-se!")
+            if portuguese
+            else ("Your fight is next", "The previous fight ended. Get ready!")
+        ),
+        FightStatus.WALKOUTS: (
+            ("Entradas iniciadas", "Os atletas estão a caminho do octógono.")
+            if portuguese
+            else ("Walkouts started", "The athletes are heading to the cage.")
+        ),
+    }
+    return messages[state]

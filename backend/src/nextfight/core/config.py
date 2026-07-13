@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path  # noqa: TC003 - Pydantic resolves this runtime field type.
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -70,6 +71,12 @@ class Settings(BaseSettings):
     access_token_minutes: int = Field(default=15, ge=5, le=30)
     refresh_token_days: int = Field(default=30, ge=1, le=90)
     manual_override_minutes: int = Field(default=10, ge=1, le=60)
+    fcm_credentials_path: Path | None = None
+    apns_team_id: str | None = None
+    apns_key_id: str | None = None
+    apns_bundle_id: str | None = None
+    apns_private_key: SecretStr | None = None
+    apns_use_sandbox: bool = False
 
     @field_validator("database_url")
     @classmethod
@@ -89,6 +96,19 @@ class Settings(BaseSettings):
             == "local-development-secret-change-me"
         ):
             msg = "JWT_SECRET must be replaced in production"
+            raise ValueError(msg)
+        if self.environment is Environment.PRODUCTION and (
+            self.fcm_credentials_path is None
+            or not all(
+                (
+                    self.apns_team_id,
+                    self.apns_key_id,
+                    self.apns_bundle_id,
+                    self.apns_private_key,
+                )
+            )
+        ):
+            msg = "FCM and APNs credentials are required in production"
             raise ValueError(msg)
         return self
 
