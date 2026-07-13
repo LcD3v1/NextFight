@@ -10,6 +10,7 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from nextfight.core.config import get_settings
+from nextfight.infrastructure.database import entities  # noqa: F401
 from nextfight.infrastructure.database.models import Base
 
 config = context.config

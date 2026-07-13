@@ -81,3 +81,9 @@ uv run alembic revision --autogenerate -m "describe change"
 ```
 
 Migrações devem ser revisadas antes de execução e nunca devem depender da importação de dados falsos.
+
+## Modelo inicial
+
+A migração inicial cria usuários, dispositivos, organizações, atletas, eventos, lutas, timeline de estados, alertas, entregas, previsões, alterações de evento, assinaturas e logs de auditoria. IDs são UUID, datas usam `timestamptz`, payloads externos usam JSONB e os estados críticos são enums PostgreSQL.
+
+Repositories não executam commit implicitamente. Casos de uso controlam a transação, permitindo atomicidade entre múltiplas alterações e publicação posterior de eventos de domínio.
