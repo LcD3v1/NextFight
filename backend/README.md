@@ -96,3 +96,15 @@ com autenticação por token. Configure `FCM_CREDENTIALS_PATH` e as variáveis
 `APNS_*` descritas no `.env.example`. Credenciais nunca devem ser armazenadas no
 repositório. Em produção, a aplicação recusa iniciar sem ambos os provedores
 configurados.
+
+Alertas por antecedência usam a previsão mais recente. Próxima luta, entradas e
+mudanças de card são produzidas pelas transições do monitoramento híbrido. Toda
+entrega possui idempotência, tentativas limitadas e backoff.
+
+## Segurança de identidade
+
+Senhas usam Argon2id. Access tokens são curtos e refresh tokens são rotativos,
+revogáveis e protegidos contra reutilização. A recuperação de senha usa token
+opaco de uso único, armazenado apenas como hash; SMTP com TLS entrega o link.
+Redis aplica rate limiting distribuído com política mais restritiva nas rotas
+de autenticação.

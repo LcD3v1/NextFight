@@ -6,6 +6,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     environment:
       NEXTFIGHT_ENV: ${NEXTFIGHT_ENV:-local}
       NEXTFIGHT_LOG_LEVEL: ${NEXTFIGHT_LOG_LEVEL:-INFO}
@@ -13,6 +16,10 @@ services:
       REDIS_URL: redis://redis:6379/0
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn nextfight.main:app --host 0.0.0.0 --port 8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,6 +35,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    networks:
+      - nextfight
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_APP_ENV: ${VITE_APP_ENV:-local}
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-5173}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - nextfight
 

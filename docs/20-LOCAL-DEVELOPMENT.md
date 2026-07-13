@@ -1,88 +1,84 @@
 # Desenvolvimento local
 
-## Objetivo
-
-Este guia descreve a execução local do monorepo. PostgreSQL, Redis e o backend FastAPI possuem serviços executáveis. Mobile e admin serão adicionados nas etapas de fundação correspondentes.
-
 ## Requisitos
 
-- Docker Engine 24 ou superior;
-- Docker Compose v2;
-- portas `5432` e `6379` disponíveis, ou portas alternativas configuradas no `.env`.
+- Docker Engine 24+ e Docker Compose v2;
+- portas `5432`, `6379`, `8000` e `5173` disponíveis;
+- Flutter stable e JDK do Android Studio para o aplicativo mobile.
 
-## Configuração
+## Serviços locais
 
-Na raiz do repositório, copie o modelo de ambiente:
+Na raiz do repositório:
 
 ```powershell
 Copy-Item .env.example .env
-```
-
-Em Bash:
-
-```bash
-cp .env.example .env
-```
-
-O arquivo `.env` é local e ignorado pelo Git. As credenciais fornecidas no exemplo servem exclusivamente para desenvolvimento local.
-
-## Iniciar
-
-```powershell
-docker compose up -d
+docker compose up -d --build
 docker compose ps
 ```
 
-O backend ficará disponível em `localhost:8000`, o PostgreSQL em `localhost:5432` e o Redis em `localhost:6379`, salvo alteração no `.env`.
+O backend aplica as migrações Alembic antes de iniciar. Endereços padrão:
 
-## Verificar saúde
+- API: `http://localhost:8000`;
+- painel: `http://localhost:5173`;
+- PostgreSQL: `localhost:5432`;
+- Redis: `localhost:6379`.
+
+## Verificação
 
 ```powershell
 docker compose exec postgres pg_isready -U nextfight -d nextfight
 docker compose exec redis redis-cli ping
-```
-
-O primeiro comando deve informar que o PostgreSQL aceita conexões. O segundo deve retornar `PONG`.
-
-Confirme também a prontidão do backend:
-
-```powershell
 Invoke-RestMethod http://localhost:8000/health/ready
 ```
 
-A resposta deve indicar `healthy` para PostgreSQL e Redis.
+## Mobile
 
-## Logs
+No diretório `mobile`:
 
 ```powershell
-docker compose logs -f postgres redis
+flutter pub get
+flutter run --dart-define=APP_ENV=local --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
 
-## Encerrar
+`10.0.2.2` representa a máquina host no emulador Android. Para Windows ou navegador, use `http://localhost:8000/api/v1`. Os arquivos Firebase são específicos por ambiente e não são versionados; consulte `mobile/README.md`.
 
-Para manter os dados locais:
+## Qualidade
+
+Backend, no diretório `backend`:
 
 ```powershell
+uv sync --locked --all-groups
+uv run ruff format --check src tests
+uv run ruff check src tests
+uv run pyright
+uv run pytest
+```
+
+Admin, no diretório `admin`:
+
+```powershell
+npm ci
+npm run lint
+npm run typecheck
+npm run test -- --run
+npm run build
+```
+
+Mobile, no diretório `mobile`:
+
+```powershell
+flutter analyze
+flutter test
+flutter build apk --debug --dart-define=APP_ENV=local --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
+```
+
+## Operação
+
+```powershell
+docker compose logs -f backend admin postgres redis
 docker compose down
 ```
 
-Para apagar também os volumes, após confirmar que os dados locais são descartáveis:
+Use `docker compose down -v` somente quando quiser apagar permanentemente os dados locais.
 
-```powershell
-docker compose down -v
-```
-
-## Ambientes
-
-O valor `NEXTFIGHT_ENV` identifica o ambiente:
-
-- `local`: execução na máquina do desenvolvedor;
-- `development`: ambiente compartilhado de integração;
-- `staging`: validação anterior à produção;
-- `production`: produção.
-
-Arquivos `.env` não devem ser usados para distribuir segredos de ambientes compartilhados. Development, staging e production devem receber segredos por mecanismos seguros da plataforma de hospedagem. Configurações específicas serão adicionadas juntamente com a infraestrutura desses ambientes.
-
-## Solução de problemas
-
-Se uma porta estiver ocupada, altere `POSTGRES_PORT` ou `REDIS_PORT` no `.env` e reinicie o Compose. Se um serviço não ficar saudável, consulte seus logs e confirme que os volumes possuem permissão de escrita.
+O projeto reconhece `local`, `development`, `staging` e `production`. Ambientes compartilhados devem receber segredos pelo mecanismo seguro da plataforma, nunca por arquivos versionados.
