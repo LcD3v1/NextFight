@@ -70,6 +70,7 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["nextfight"]
+concurrency = ["greenlet"]
 
 [tool.coverage.report]
 exclude_also = [

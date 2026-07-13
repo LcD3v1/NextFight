@@ -32,6 +32,7 @@ def test_application_and_metadata_are_importable() -> None:
         "athletes",
         "audit_logs",
         "devices",
+        "favorites",
         "event_changes",
         "events",
         "fight_state_events",

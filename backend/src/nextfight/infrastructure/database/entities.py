@@ -108,6 +108,24 @@ class Device(EntityMixin, Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class Favorite(EntityMixin, Base):
+    """User bookmark for a supported public domain entity."""
+
+    __tablename__ = "favorites"
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    target_type: Mapped[str] = mapped_column(String(32), index=True)
+    target_id: Mapped[UUID] = mapped_column(index=True)
+    __table_args__ = (
+        CheckConstraint(
+            "target_type IN ('event', 'organization', 'athlete')",
+            name="favorite_target_type",
+        ),
+        UniqueConstraint("user_id", "target_type", "target_id"),
+    )
+
+
 class Organization(EntityMixin, Base):
     """Combat sports organization."""
 
@@ -186,7 +204,10 @@ class Alert(EntityMixin, Base):
     lead_minutes: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(32), index=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    __table_args__ = (Index("ix_alerts_fight_status", "fight_id", "status"),)
+    __table_args__ = (
+        Index("ix_alerts_fight_status", "fight_id", "status"),
+        UniqueConstraint("user_id", "fight_id", "trigger_type", "lead_minutes"),
+    )
 
 
 class FightStateEvent(EntityMixin, Base):
