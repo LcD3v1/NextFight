@@ -59,6 +59,39 @@ class User(EntityMixin, Base):
     locale: Mapped[str] = mapped_column(String(16), default="en")
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     status: Mapped[str] = mapped_column(String(32), index=True)
+    role: Mapped[str] = mapped_column(String(32), default="user", index=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RefreshSession(EntityMixin, Base):
+    """Rotating and revocable refresh-token session."""
+
+    __tablename__ = "refresh_sessions"
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    family_id: Mapped[UUID] = mapped_column(index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    replaced_by_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("refresh_sessions.id")
+    )
+    user_agent: Mapped[str | None] = mapped_column(String(512))
+    ip_address: Mapped[str | None] = mapped_column(String(45))
+
+
+class OneTimeToken(EntityMixin, Base):
+    """Hashed single-use token for email verification or password reset."""
+
+    __tablename__ = "one_time_tokens"
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    purpose: Mapped[str] = mapped_column(String(32), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Device(EntityMixin, Base):

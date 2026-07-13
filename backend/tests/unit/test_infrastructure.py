@@ -37,7 +37,9 @@ def test_application_and_metadata_are_importable() -> None:
         "fight_state_events",
         "fights",
         "organizations",
+        "one_time_tokens",
         "predictions",
+        "refresh_sessions",
         "subscriptions",
         "users",
     }
