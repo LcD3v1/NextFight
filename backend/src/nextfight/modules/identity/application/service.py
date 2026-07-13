@@ -2,12 +2,17 @@
 
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nextfight.core.config import Settings
-from nextfight.infrastructure.database.entities import RefreshSession, User
+from nextfight.infrastructure.database.entities import (
+    OneTimeToken,
+    RefreshSession,
+    User,
+)
 from nextfight.modules.identity.domain.security import PasswordHasher, TokenService
 
 
@@ -136,6 +141,94 @@ class IdentityService:
         )
         if session is not None and session.revoked_at is None:
             session.revoked_at = datetime.now(UTC)
+
+    async def request_password_reset(self, email: str) -> tuple[User, str] | None:
+        """Create a short-lived opaque token without revealing unknown accounts."""
+        user = await self._find_user_by_email(email.strip().casefold())
+        if user is None or user.status != "active":
+            return None
+        now = datetime.now(UTC)
+        await self._session.execute(
+            update(OneTimeToken)
+            .where(
+                OneTimeToken.user_id == user.id,
+                OneTimeToken.purpose == "password_reset",
+                OneTimeToken.consumed_at.is_(None),
+            )
+            .values(consumed_at=now)
+        )
+        token = self._tokens.issue_refresh_token()
+        self._session.add(
+            OneTimeToken(
+                user_id=user.id,
+                purpose="password_reset",
+                token_hash=self._tokens.hash_refresh_token(token),
+                expires_at=now
+                + timedelta(minutes=self._settings.password_reset_minutes),
+            )
+        )
+        await self._session.flush()
+        return user, token
+
+    async def reset_password(self, token: str, password: str) -> None:
+        """Consume a recovery token, replace the hash, and revoke all sessions."""
+        token_record = await self._session.scalar(
+            select(OneTimeToken)
+            .where(
+                OneTimeToken.token_hash == self._tokens.hash_refresh_token(token),
+                OneTimeToken.purpose == "password_reset",
+            )
+            .with_for_update()
+        )
+        now = datetime.now(UTC)
+        if (
+            token_record is None
+            or token_record.consumed_at is not None
+            or token_record.expires_at <= now
+        ):
+            error = _identity_error(
+                "invalid_reset_token", "The reset token is invalid or expired."
+            )
+            raise error
+        user = await self._session.get(User, token_record.user_id)
+        if user is None or user.status != "active":
+            error = _identity_error(
+                "invalid_reset_token", "The reset token is invalid or expired."
+            )
+            raise error
+        user.password_hash = self._passwords.hash(password)
+        token_record.consumed_at = now
+        await self._session.execute(
+            update(RefreshSession)
+            .where(
+                RefreshSession.user_id == user.id,
+                RefreshSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
+        )
+
+    async def update_profile(
+        self,
+        user: User,
+        *,
+        display_name: str | None,
+        locale: str | None,
+        timezone: str | None,
+    ) -> User:
+        """Update validated profile fields without replacing omitted values."""
+        if timezone is not None:
+            try:
+                ZoneInfo(timezone)
+            except ZoneInfoNotFoundError as exception:
+                error = _identity_error("invalid_timezone", "Invalid timezone.")
+                raise error from exception
+            user.timezone = timezone
+        if display_name is not None:
+            user.display_name = display_name.strip()
+        if locale is not None:
+            user.locale = locale
+        await self._session.flush()
+        return user
 
     async def _find_user_by_email(self, email: str) -> User | None:
         return await self._session.scalar(select(User).where(User.email == email))

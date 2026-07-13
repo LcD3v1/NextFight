@@ -9,11 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nextfight.core.config import Settings
 from nextfight.infrastructure.database.dependencies import get_database_session
 from nextfight.infrastructure.database.entities import User
+from nextfight.infrastructure.email.smtp import SmtpEmailSender
 from nextfight.modules.identity.api.dependencies import get_current_user
 from nextfight.modules.identity.api.schemas import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
+    ProfileUpdate,
     RefreshRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserResponse,
 )
@@ -23,12 +28,45 @@ from nextfight.modules.identity.application.service import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+profile_router = APIRouter(prefix="/me", tags=["User profile"])
 
 
 @router.get("/me")
 async def me(user: Annotated[User, Depends(get_current_user)]) -> UserResponse:
     """Return the current authenticated user's public profile."""
     return UserResponse.model_validate(user, from_attributes=True)
+
+
+@profile_router.get("")
+async def get_profile(
+    user: Annotated[User, Depends(get_current_user)],
+) -> UserResponse:
+    """Return the canonical current-user profile endpoint."""
+    return UserResponse.model_validate(user, from_attributes=True)
+
+
+@profile_router.patch("")
+async def update_profile(
+    payload: ProfileUpdate,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> UserResponse:
+    """Update the current user's display and regional preferences."""
+    try:
+        updated = await IdentityService(
+            session, request.app.state.settings
+        ).update_profile(
+            user,
+            display_name=payload.display_name,
+            locale=payload.locale,
+            timezone=payload.timezone,
+        )
+    except IdentityError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
+    return UserResponse.model_validate(updated, from_attributes=True)
 
 
 def _client_context(request: Request) -> tuple[str | None, str | None]:
@@ -129,4 +167,44 @@ async def logout(
     await IdentityService(session, request.app.state.settings).logout(
         payload.refresh_token
     )
+    return Response(status_code=HTTPStatus.NO_CONTENT)
+
+
+@router.post("/forgot-password", status_code=HTTPStatus.ACCEPTED)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ForgotPasswordResponse:
+    """Create and deliver a reset token while hiding account existence."""
+    result = await IdentityService(
+        session, request.app.state.settings
+    ).request_password_reset(payload.email)
+    if result is None:
+        return ForgotPasswordResponse()
+    user, token = result
+    await session.commit()
+    sender = SmtpEmailSender(request.app.state.settings)
+    await sender.send_password_reset(user.email, token)
+    local_token = (
+        token if request.app.state.settings.environment.value == "local" else None
+    )
+    return ForgotPasswordResponse(reset_token=local_token)
+
+
+@router.post("/reset-password", status_code=HTTPStatus.NO_CONTENT)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> Response:
+    """Replace a password using an unexpired single-use reset token."""
+    try:
+        await IdentityService(session, request.app.state.settings).reset_password(
+            payload.token, payload.password
+        )
+    except IdentityError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
     return Response(status_code=HTTPStatus.NO_CONTENT)

@@ -70,6 +70,14 @@ class Settings(BaseSettings):
     jwt_audience: str = "nextfight-clients"
     access_token_minutes: int = Field(default=15, ge=5, le=30)
     refresh_token_days: int = Field(default=30, ge=1, le=90)
+    password_reset_minutes: int = Field(default=30, ge=5, le=120)
+    password_reset_url: str = "http://localhost:5173/reset-password"  # noqa: S105
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
     manual_override_minutes: int = Field(default=10, ge=1, le=60)
     fcm_credentials_path: Path | None = None
     apns_team_id: str | None = None
@@ -116,6 +124,16 @@ class Settings(BaseSettings):
             for origin in self.cors_allowed_origins
         ):
             msg = "Production CORS origins cannot reference localhost"
+            raise ValueError(msg)
+        if self.environment is Environment.PRODUCTION and not all(
+            (
+                self.smtp_host,
+                self.smtp_username,
+                self.smtp_password,
+                self.smtp_from_email,
+            )
+        ):
+            msg = "SMTP configuration is required in production"
             raise ValueError(msg)
         return self
 

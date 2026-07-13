@@ -14,7 +14,7 @@ from nextfight.infrastructure.database.session import create_database_engine
 
 
 @pytest.mark.integration
-async def test_authentication_session_lifecycle(
+async def test_authentication_session_lifecycle(  # noqa: PLR0915
     client: httpx.AsyncClient,
     settings: Settings,
 ) -> None:
@@ -45,6 +45,33 @@ async def test_authentication_session_lifecycle(
         )
         assert profile.status_code == HTTPStatus.OK
         assert profile.json()["id"] == str(user_id)
+
+        canonical_profile = await client.get(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {registered['access_token']}"},
+        )
+        assert canonical_profile.status_code == HTTPStatus.OK
+        assert canonical_profile.json()["timezone"] == "UTC"
+
+        updated_profile = await client.patch(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {registered['access_token']}"},
+            json={
+                "display_name": "Updated Fighter",
+                "locale": "pt",
+                "timezone": "America/Sao_Paulo",
+            },
+        )
+        assert updated_profile.status_code == HTTPStatus.OK
+        assert updated_profile.json()["display_name"] == "Updated Fighter"
+        assert updated_profile.json()["locale"] == "pt"
+
+        invalid_timezone = await client.patch(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {registered['access_token']}"},
+            json={"timezone": "Mars/Olympus"},
+        )
+        assert invalid_timezone.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
         anonymous_profile = await client.get("/api/v1/auth/me")
         assert anonymous_profile.status_code == HTTPStatus.UNAUTHORIZED
@@ -104,6 +131,41 @@ async def test_authentication_session_lifecycle(
             json={"refresh_token": registered["refresh_token"]},
         )
         assert logout.status_code == HTTPStatus.NO_CONTENT
+
+        unknown_recovery = await client.post(
+            "/api/v1/auth/forgot-password",
+            json={"email": f"unknown-{uuid4()}@example.com"},
+        )
+        assert unknown_recovery.status_code == HTTPStatus.ACCEPTED
+        assert unknown_recovery.json() == {"accepted": True, "reset_token": None}
+
+        recovery = await client.post(
+            "/api/v1/auth/forgot-password", json={"email": email}
+        )
+        assert recovery.status_code == HTTPStatus.ACCEPTED
+        reset_token = recovery.json()["reset_token"]
+        assert len(reset_token) >= 64  # noqa: PLR2004
+        new_password = "A-new-production-grade-passphrase-84"  # noqa: S105
+        reset = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": reset_token, "password": new_password},
+        )
+        assert reset.status_code == HTTPStatus.NO_CONTENT
+
+        reused_reset = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": reset_token, "password": password},
+        )
+        assert reused_reset.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+        old_password_login = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": password}
+        )
+        assert old_password_login.status_code == HTTPStatus.UNAUTHORIZED
+        new_password_login = await client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": new_password},
+        )
+        assert new_password_login.status_code == HTTPStatus.OK
     finally:
         if user_id is not None:
             engine = create_database_engine(settings)
