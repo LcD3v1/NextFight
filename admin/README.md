@@ -1,17 +1,25 @@
 # Admin
 
-Painel operacional e administrativo do NextFight, desenvolvido em React e TypeScript.
+Painel operacional NextFight em React, TypeScript estrito, Vite, Tailwind CSS e componentes no padrão shadcn/ui.
 
-## Responsabilidade
+## Fundação
 
-Este módulo permitirá administrar dados, acompanhar eventos ao vivo, corrigir estados e consultar auditoria e saúde operacional. A interface deverá priorizar segurança, velocidade, acessibilidade e rastreabilidade.
+Inclui shell responsivo e acessível, navegação operacional, TanStack Query, React Hook Form, Zod, Vitest e Playwright. As páginas atuais delimitam áreas administrativas sem dados falsos nem autenticação simulada.
 
-## Arquitetura prevista
+## Execução
 
-A base obrigatória é Vite, React, TypeScript em modo estrito, Tailwind CSS, shadcn/ui, TanStack Query, React Hook Form e Zod. O código será organizado por features, com componentes compartilhados apenas quando houver reutilização comprovada.
+```powershell
+npm install
+npm run dev
+```
 
-## Estado atual
+## Qualidade
 
-A aplicação React ainda não foi inicializada. Isso pertence à etapa “Fundação do admin” de `docs/19-INITIAL-CODEX-PROMPTS.md`; esta etapa cria apenas o limite do módulo.
+```powershell
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
 
-Quando inicializado, o módulo deverá disponibilizar comandos para lint, verificação de tipos, testes com Vitest, testes Playwright e build de produção.
+Configure `VITE_API_BASE_URL` e `VITE_APP_ENV` por ambiente. Valores externos são validados com Zod antes do uso.
