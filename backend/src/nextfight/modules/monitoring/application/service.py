@@ -22,6 +22,7 @@ from nextfight.infrastructure.database.entities import (
     Prediction,
     User,
 )
+from nextfight.infrastructure.notifications.messages import localized_state_message
 from nextfight.modules.monitoring.domain.prediction import predict_start
 from nextfight.modules.monitoring.domain.state_machine import (
     FIGHT_TRANSITIONS,
@@ -215,7 +216,7 @@ class MonitoringService:
                 )
             ):
                 continue
-            title, body = _localized_message(user.locale, target)
+            title, body = localized_state_message(user.locale, target)
             self._session.add(
                 AlertDelivery(
                     alert_id=alert.id,
@@ -296,20 +297,3 @@ class MonitoringService:
             return
         if occurred_at < protected_until:
             raise ManualOverrideActiveError
-
-
-def _localized_message(locale: str, state: FightStatus) -> tuple[str, str]:
-    portuguese = locale.casefold().startswith("pt")
-    messages = {
-        FightStatus.NEXT: (
-            ("Sua luta é a próxima", "A luta anterior terminou. Prepare-se!")
-            if portuguese
-            else ("Your fight is next", "The previous fight ended. Get ready!")
-        ),
-        FightStatus.WALKOUTS: (
-            ("Entradas iniciadas", "Os atletas estão a caminho do octógono.")
-            if portuguese
-            else ("Walkouts started", "The athletes are heading to the cage.")
-        ),
-    }
-    return messages[state]

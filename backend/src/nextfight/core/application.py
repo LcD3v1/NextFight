@@ -17,6 +17,7 @@ from nextfight.core.middleware.request_id import RequestIdMiddleware
 from nextfight.infrastructure.cache.client import create_redis_client
 from nextfight.infrastructure.database.session import create_database_engine
 from nextfight.infrastructure.messaging.outbox import OutboxDispatcher
+from nextfight.infrastructure.notifications.scheduler import LeadTimeAlertScheduler
 from nextfight.infrastructure.notifications.worker import PushDeliveryWorker
 
 if TYPE_CHECKING:
@@ -49,13 +50,18 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         push_task = asyncio.create_task(
             push_worker.run(application.state.push_stop), name="push-delivery-worker"
         )
+        lead_time_scheduler = LeadTimeAlertScheduler(application.state.database_engine)
+        lead_time_task = asyncio.create_task(
+            lead_time_scheduler.run(application.state.push_stop),
+            name="lead-time-alert-scheduler",
+        )
         logger.info("application_started", environment=resolved_settings.environment)
         try:
             yield
         finally:
             application.state.outbox_stop.set()
             application.state.push_stop.set()
-            await asyncio.gather(outbox_task, push_task)
+            await asyncio.gather(outbox_task, push_task, lead_time_task)
             await push_worker.close()
             await application.state.redis.aclose()
             await application.state.database_engine.dispose()
