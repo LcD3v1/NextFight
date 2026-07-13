@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nextfight.core.config import Settings
 from nextfight.infrastructure.database.dependencies import get_database_session
+from nextfight.infrastructure.database.entities import User
+from nextfight.modules.identity.api.dependencies import get_current_user
 from nextfight.modules.identity.api.schemas import (
     LoginRequest,
     RefreshRequest,
@@ -21,6 +23,12 @@ from nextfight.modules.identity.application.service import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.get("/me")
+async def me(user: Annotated[User, Depends(get_current_user)]) -> UserResponse:
+    """Return the current authenticated user's public profile."""
+    return UserResponse.model_validate(user, from_attributes=True)
 
 
 def _client_context(request: Request) -> tuple[str | None, str | None]:

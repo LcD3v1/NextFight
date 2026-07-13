@@ -39,6 +39,22 @@ async def test_authentication_session_lifecycle(
         assert registered["expires_in"] == settings.access_token_minutes * 60
         assert len(registered["refresh_token"]) >= 64  # noqa: PLR2004
 
+        profile = await client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {registered['access_token']}"},
+        )
+        assert profile.status_code == HTTPStatus.OK
+        assert profile.json()["id"] == str(user_id)
+
+        anonymous_profile = await client.get("/api/v1/auth/me")
+        assert anonymous_profile.status_code == HTTPStatus.UNAUTHORIZED
+
+        invalid_profile = await client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        assert invalid_profile.status_code == HTTPStatus.UNAUTHORIZED
+
         duplicate = await client.post(
             "/api/v1/auth/register",
             json={
