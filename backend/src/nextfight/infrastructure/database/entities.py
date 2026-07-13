@@ -222,6 +222,7 @@ class FightStateEvent(EntityMixin, Base):
     round_number: Mapped[int | None] = mapped_column(Integer)
     clock_seconds: Mapped[int | None] = mapped_column(Integer)
     source: Mapped[str] = mapped_column(String(64))
+    idempotency_key: Mapped[str] = mapped_column(String(160), unique=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
@@ -271,6 +272,20 @@ class EventChange(EntityMixin, Base):
     after_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     source: Mapped[str] = mapped_column(String(64))
     actor_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+
+
+class OutboxEvent(EntityMixin, Base):
+    """Transactional integration event awaiting reliable publication."""
+
+    __tablename__ = "outbox_events"
+    topic: Mapped[str] = mapped_column(String(160), index=True)
+    event_type: Mapped[str] = mapped_column(String(80), index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(200), unique=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Subscription(EntityMixin, Base):

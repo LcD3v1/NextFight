@@ -39,6 +39,7 @@ def test_application_and_metadata_are_importable() -> None:
         "fights",
         "organizations",
         "one_time_tokens",
+        "outbox_events",
         "predictions",
         "refresh_sessions",
         "subscriptions",

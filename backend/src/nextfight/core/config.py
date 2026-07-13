@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     jwt_audience: str = "nextfight-clients"
     access_token_minutes: int = Field(default=15, ge=5, le=30)
     refresh_token_days: int = Field(default=30, ge=1, le=90)
+    manual_override_minutes: int = Field(default=10, ge=1, le=60)
 
     @field_validator("database_url")
     @classmethod
