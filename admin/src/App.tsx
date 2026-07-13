@@ -1,12 +1,12 @@
-import { Activity, Bell, CalendarDays, Gauge, Menu, ScrollText, Swords, Users, X } from 'lucide-react'
+import { Activity, Bell, CalendarDays, Gauge, LogOut, Menu, ScrollText, Users, X } from 'lucide-react'
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { sessionStore } from './shared/api/client'
 
 const navigation = [
   { label: 'Dashboard', to: '/', icon: Gauge },
   { label: 'Events', to: '/events', icon: CalendarDays },
   { label: 'Live monitor', to: '/live', icon: Activity },
-  { label: 'Fights', to: '/fights', icon: Swords },
   { label: 'Users', to: '/users', icon: Users },
   { label: 'Alerts', to: '/alerts', icon: Bell },
   { label: 'Audit logs', to: '/audit-logs', icon: ScrollText },
@@ -14,11 +14,14 @@ const navigation = [
 
 export function AppLayout() {
   const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+  if (!sessionStore.access()) return <Navigate to="/login" replace />
+  function logout() { sessionStore.clear(); void navigate('/login', { replace: true }) }
   return <div className="min-h-screen bg-zinc-950 text-zinc-100">
     <a href="#content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-red-600 focus:p-3">Skip to content</a>
     <header className="sticky top-0 z-30 flex h-16 items-center border-b border-zinc-800 bg-zinc-950/95 px-4 backdrop-blur lg:pl-72">
       <button type="button" className="rounded p-2 lg:hidden" aria-label="Open navigation" onClick={() => setOpen(true)}><Menu /></button>
-      <div className="ml-auto text-sm text-zinc-400">Operational console</div>
+      <div className="ml-auto flex items-center gap-3 text-sm text-zinc-400"><span>Operational console</span><button onClick={logout} className="flex items-center gap-2 rounded p-2 hover:bg-zinc-800" aria-label="Sign out"><LogOut size={17} /></button></div>
     </header>
     <aside className={`${open ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-64 border-r border-zinc-800 bg-zinc-950 p-4 transition-transform lg:translate-x-0`} aria-label="Primary navigation">
       <div className="mb-8 flex items-center justify-between"><strong className="text-xl">Next<span className="text-red-500">Fight</span></strong><button type="button" className="p-2 lg:hidden" aria-label="Close navigation" onClick={() => setOpen(false)}><X /></button></div>

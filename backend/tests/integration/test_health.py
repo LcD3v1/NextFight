@@ -21,6 +21,21 @@ async def test_liveness_endpoint(client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.integration
+async def test_admin_origin_cors_preflight(client: httpx.AsyncClient) -> None:
+    """Permit the configured admin origin and authorization header."""
+    response = await client.options(
+        "/api/v1/admin/dashboard",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+    assert response.headers["access-control-allow-origin"] == ("http://localhost:5173")
+
+
+@pytest.mark.integration
 async def test_readiness_checks_real_dependencies(client: httpx.AsyncClient) -> None:
     """Readiness verifies real PostgreSQL and Redis connections."""
     response = await client.get("/health/ready")

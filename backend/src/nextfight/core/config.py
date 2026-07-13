@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     apns_bundle_id: str | None = None
     apns_private_key: SecretStr | None = None
     apns_use_sandbox: bool = False
+    cors_allowed_origins: list[str] = ["http://localhost:5173"]
 
     @field_validator("database_url")
     @classmethod
@@ -109,6 +110,12 @@ class Settings(BaseSettings):
             )
         ):
             msg = "FCM and APNs credentials are required in production"
+            raise ValueError(msg)
+        if self.environment is Environment.PRODUCTION and any(
+            "localhost" in origin or "127.0.0.1" in origin
+            for origin in self.cors_allowed_origins
+        ):
+            msg = "Production CORS origins cannot reference localhost"
             raise ValueError(msg)
         return self
 

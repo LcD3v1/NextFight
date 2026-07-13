@@ -1,0 +1,20 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { apiRequest } from '../../shared/api/client'
+import { ErrorState, LoadingState, Page } from '../../shared/ui/Page'
+
+interface EventItem { readonly id: string; readonly name: string; readonly status: string }
+interface EventList { readonly items: readonly EventItem[] }
+interface Fight { readonly id: string; readonly status: string; readonly current_order: number; readonly red_athlete: { readonly name: string }; readonly blue_athlete: { readonly name: string } }
+interface EventDetail extends EventItem { readonly fights: readonly Fight[] }
+const eventStates = ['live', 'paused', 'completed'] as const
+const fightStates = ['next', 'walkouts', 'live', 'paused', 'completed', 'no_contest', 'cancelled'] as const
+export function LiveMonitorPage() {
+  const client = useQueryClient(); const [selected, setSelected] = useState<string>()
+  const events = useQuery({ queryKey: ['live-events'], queryFn: () => apiRequest<EventList>('/events?limit=100&statuses=scheduled&statuses=delayed&statuses=live&statuses=paused'), refetchInterval: 10_000 })
+  const detail = useQuery({ queryKey: ['event', selected], queryFn: () => apiRequest<EventDetail>(`/events/${selected}`), enabled: Boolean(selected), refetchInterval: 5_000 })
+  const command = useMutation({ mutationFn: ({ path, state }: { path: string; state: string }) => apiRequest(path, { method: 'POST', body: JSON.stringify({ state, idempotency_key: `admin:${crypto.randomUUID()}`, occurred_at: new Date().toISOString() }) }), onSuccess: async () => { await client.invalidateQueries({ queryKey: ['event', selected] }); await client.invalidateQueries({ queryKey: ['live-events'] }) } })
+  if (events.isPending) return <LoadingState />
+  if (events.error) return <ErrorState error={events.error} />
+  return <Page title="Live monitor" eyebrow="Hybrid control"><div className="grid gap-6 xl:grid-cols-[20rem_1fr]"><aside className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3"><h2 className="px-2 py-3 font-semibold">Active and upcoming</h2>{events.data.items.map(event => <button key={event.id} onClick={() => setSelected(event.id)} className={`mb-2 w-full rounded-lg p-3 text-left ${selected === event.id ? 'bg-red-600' : 'bg-zinc-900 hover:bg-zinc-800'}`}><strong className="block">{event.name}</strong><span className="text-xs opacity-75">{event.status}</span></button>)}</aside><section>{!selected && <div className="rounded-xl border border-zinc-800 p-8 text-zinc-400">Select an event to operate its live card.</div>}{detail.isPending && selected && <LoadingState />}{detail.error && <ErrorState error={detail.error} />}{detail.data && <><div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-xl font-bold">{detail.data.name}</h2><p className="text-sm text-zinc-400">Current state: {detail.data.status}</p></div><div className="flex flex-wrap gap-2">{eventStates.map(state => <button key={state} onClick={() => command.mutate({ path: `/admin/events/${detail.data.id}/state`, state })} className="rounded border border-zinc-700 px-3 py-2 text-sm capitalize hover:bg-zinc-800">{state}</button>)}</div></div><ol className="space-y-3">{detail.data.fights.map(fight => <li key={fight.id} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><span className="text-xs text-zinc-500">#{fight.current_order} · {fight.status}</span><h3 className="font-semibold">{fight.red_athlete.name} vs {fight.blue_athlete.name}</h3></div><div className="flex flex-wrap gap-1">{fightStates.map(state => <button key={state} onClick={() => command.mutate({ path: `/admin/fights/${fight.id}/state`, state })} className="rounded bg-zinc-800 px-2 py-1 text-xs capitalize hover:bg-red-600">{state.replace('_', ' ')}</button>)}</div></div></li>)}</ol>{command.error && <p role="alert" className="mt-4 text-red-300">{command.error.message}</p>}</>}</section></div></Page>
+}
