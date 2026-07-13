@@ -22,5 +22,15 @@ abstract final class AppTheme {
       backgroundColor: Colors.transparent,
       centerTitle: false,
     ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
   );
 }
