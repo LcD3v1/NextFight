@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,6 +61,14 @@ class Settings(BaseSettings):
         validation_alias="REDIS_URL",
     )
     health_check_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    jwt_secret: SecretStr = Field(
+        default=SecretStr("local-development-secret-change-me"),
+        validation_alias="JWT_SECRET",
+    )
+    jwt_issuer: str = "https://api.nextfight.app"
+    jwt_audience: str = "nextfight-clients"
+    access_token_minutes: int = Field(default=15, ge=5, le=30)
+    refresh_token_days: int = Field(default=30, ge=1, le=90)
 
     @field_validator("database_url")
     @classmethod
@@ -70,6 +78,18 @@ class Settings(BaseSettings):
             msg = "DATABASE_URL must use the postgresql+asyncpg driver"
             raise ValueError(msg)
         return value
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> Settings:
+        """Reject development credentials in production."""
+        if (
+            self.environment is Environment.PRODUCTION
+            and self.jwt_secret.get_secret_value()
+            == "local-development-secret-change-me"
+        ):
+            msg = "JWT_SECRET must be replaced in production"
+            raise ValueError(msg)
+        return self
 
 
 @lru_cache(maxsize=1)
