@@ -13,6 +13,7 @@ from nextfight.api.router import build_router
 from nextfight.core.config import Environment, Settings, get_settings
 from nextfight.core.errors.handlers import register_exception_handlers
 from nextfight.core.logging import configure_logging, get_logger
+from nextfight.core.middleware.rate_limit import RateLimitMiddleware
 from nextfight.core.middleware.request_id import RequestIdMiddleware
 from nextfight.infrastructure.cache.client import create_redis_client
 from nextfight.infrastructure.database.session import create_database_engine
@@ -89,6 +90,7 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         expose_headers=["X-Request-ID"],
         max_age=600,
     )
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(RequestIdMiddleware)
     register_exception_handlers(app)
     app.include_router(build_router())

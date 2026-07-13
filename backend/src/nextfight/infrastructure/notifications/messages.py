@@ -32,3 +32,16 @@ def localized_lead_message(locale: str, minutes: int) -> tuple[str, str]:
         "Your fight is approaching",
         f"The current prediction indicates a start in about {minutes} minutes.",
     )
+
+
+def localized_card_message(locale: str) -> tuple[str, str]:
+    """Return a card-order change notification in the preferred language."""
+    if locale.casefold().startswith("pt"):
+        return (
+            "O card do evento mudou",
+            "A ordem das lutas foi atualizada. Confira a nova posição da sua luta.",
+        )
+    return (
+        "The event card changed",
+        "The fight order was updated. Check your fight's new position.",
+    )

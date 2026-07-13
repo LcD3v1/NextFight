@@ -62,6 +62,9 @@ class Settings(BaseSettings):
         validation_alias="REDIS_URL",
     )
     health_check_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    rate_limit_namespace: str = "nextfight"
+    auth_rate_limit_per_minute: int = Field(default=10, ge=1, le=1000)
+    api_rate_limit_per_minute: int = Field(default=300, ge=10, le=10000)
     jwt_secret: SecretStr = Field(
         default=SecretStr("local-development-secret-change-me"),
         validation_alias="JWT_SECRET",

@@ -1,6 +1,7 @@
 """Audited administrative mutation and operational query use cases."""
 
 from datetime import UTC, datetime
+from hashlib import sha256
 from typing import Any
 from uuid import UUID
 
@@ -24,6 +25,7 @@ from nextfight.infrastructure.database.entities import (
     User,
 )
 from nextfight.infrastructure.database.models import EntityMixin
+from nextfight.infrastructure.notifications.messages import localized_card_message
 from nextfight.modules.admin.api.schemas import (
     AlertDispatchCommand,
     AthleteCreate,
@@ -244,6 +246,7 @@ class AdminService:
             event_id,
             {"fight_ids": [str(item) for item in fight_ids]},
         )
+        await self._enqueue_card_change_alerts(event_id, fight_ids)
 
     async def dashboard(self) -> DashboardResponse:
         """Return current operational counters."""
@@ -372,6 +375,55 @@ class AdminService:
             },
         )
         return queued
+
+    async def _enqueue_card_change_alerts(
+        self, event_id: UUID, fight_ids: list[UUID]
+    ) -> None:
+        """Notify each enabled device once for a distinct resulting card order."""
+        rows = (
+            await self._session.execute(
+                select(Alert, Device, User)
+                .join(Fight, Fight.id == Alert.fight_id)
+                .join(Device, Device.user_id == Alert.user_id)
+                .join(User, User.id == Alert.user_id)
+                .where(
+                    Fight.event_id == event_id,
+                    Alert.status == "active",
+                    Device.notifications_enabled.is_(True),
+                )
+            )
+        ).all()
+        order_digest = sha256(
+            ":".join(str(item) for item in fight_ids).encode()
+        ).hexdigest()[:24]
+        now = datetime.now(UTC)
+        seen_devices: set[UUID] = set()
+        for alert, device, user in rows:
+            if device.id in seen_devices:
+                continue
+            seen_devices.add(device.id)
+            title, body = localized_card_message(user.locale)
+            await self._session.execute(
+                insert(AlertDelivery)
+                .values(
+                    alert_id=alert.id,
+                    device_id=device.id,
+                    channel="push",
+                    idempotency_key=(
+                        f"alert:card:{event_id}:{order_digest}:{device.id}"
+                    ),
+                    status="pending",
+                    title=title,
+                    body=body,
+                    data={
+                        "type": "event.card_changed",
+                        "event_id": str(event_id),
+                    },
+                    attempts=0,
+                    next_attempt_at=now,
+                )
+                .on_conflict_do_nothing(index_elements=["idempotency_key"])
+            )
 
     async def _locked[Entity: EntityMixin](
         self, entity_type: type[Entity], entity_id: UUID

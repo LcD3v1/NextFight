@@ -202,6 +202,20 @@ async def test_admin_crud_live_control_rbac_and_audit(  # noqa: PLR0915
             json=dispatch_payload,
         )
         assert duplicate_dispatch.json()["queued"] == 0
+        card_change = await client.put(
+            f"/api/v1/admin/events/{event_id}/card",
+            headers=headers,
+            json={"fight_ids": [str(item) for item in created["fights"]]},
+        )
+        assert card_change.status_code == HTTPStatus.NO_CONTENT
+        async with factory() as session:
+            card_delivery = await session.scalar(
+                select(AlertDelivery).where(
+                    AlertDelivery.alert_id == UUID(alert.json()["id"]),
+                    AlertDelivery.data["type"].astext == "event.card_changed",
+                )
+            )
+            assert card_delivery is not None
 
         dashboard = await client.get("/api/v1/admin/dashboard", headers=headers)
         assert dashboard.status_code == HTTPStatus.OK
