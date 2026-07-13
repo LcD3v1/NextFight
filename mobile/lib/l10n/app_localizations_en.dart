@@ -111,4 +111,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remove => 'Remove';
+
+  @override
+  String get forgotPassword => 'Forgot password?';
+
+  @override
+  String get resetPassword => 'Reset password';
+
+  @override
+  String get recoveryInstructions =>
+      'Enter your account email. If it exists, we will send a secure recovery link.';
+
+  @override
+  String get sendRecoveryLink => 'Send recovery link';
+
+  @override
+  String get recoverySent =>
+      'If the account exists, recovery instructions were sent.';
+
+  @override
+  String get recoveryToken => 'Recovery token';
+
+  @override
+  String get passwordChanged => 'Password changed. Sign in again.';
 }

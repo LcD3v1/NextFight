@@ -34,5 +34,12 @@
   "loginSubtitle": "Escolha a luta. Nós acompanhamos o evento por você.",
   "passwordRequirements": "Use pelo menos 12 caracteres.",
   "versus": "vs",
-  "remove": "Remover"
+  "remove": "Remover",
+  "forgotPassword": "Esqueceu a senha?",
+  "resetPassword": "Redefinir senha",
+  "recoveryInstructions": "Informe o e-mail da conta. Se ela existir, enviaremos um link seguro de recuperação.",
+  "sendRecoveryLink": "Enviar link de recuperação",
+  "recoverySent": "Se a conta existir, as instruções de recuperação foram enviadas.",
+  "recoveryToken": "Token de recuperação",
+  "passwordChanged": "Senha alterada. Entre novamente."
 }

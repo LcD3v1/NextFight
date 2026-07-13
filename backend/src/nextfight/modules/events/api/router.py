@@ -21,6 +21,7 @@ from nextfight.modules.events.application.service import (
 
 router = APIRouter(tags=["Events"])
 EVENT_NOT_FOUND = "Event not found."
+FIGHT_NOT_FOUND = "Fight not found."
 
 
 @router.get("/events")
@@ -58,3 +59,15 @@ async def list_fights(
     except EventNotFoundError as error:
         raise HTTPException(HTTPStatus.NOT_FOUND, EVENT_NOT_FOUND) from error
     return await service.list_fights(event_id)
+
+
+@router.get("/fights/{fight_id}")
+async def get_fight(
+    fight_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> FightResponse:
+    """Return one fight with its current public state and athletes."""
+    try:
+        return await EventQueryService(session).get_fight(fight_id)
+    except EventNotFoundError as error:
+        raise HTTPException(HTTPStatus.NOT_FOUND, FIGHT_NOT_FOUND) from error

@@ -40,6 +40,9 @@ class ProfilePage extends ConsumerWidget {
             onChanged: (value) {
               if (value != null) {
                 ref.read(localeProvider.notifier).select(value);
+                ref
+                    .read(authControllerProvider.notifier)
+                    .updateProfile(locale: value);
               }
             },
             child: Column(

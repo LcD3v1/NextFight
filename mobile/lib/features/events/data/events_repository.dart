@@ -20,6 +20,11 @@ class EventsRepository {
     final response = await _dio.get<Map<String, dynamic>>('/events/$eventId');
     return FightEvent.fromJson(response.data!);
   }
+
+  Future<Fight> getFight(String fightId) async {
+    final response = await _dio.get<Map<String, dynamic>>('/fights/$fightId');
+    return Fight.fromJson(response.data!);
+  }
 }
 
 final eventsRepositoryProvider = Provider<EventsRepository>(
@@ -32,4 +37,8 @@ final eventsProvider = FutureProvider<List<FightEvent>>(
 
 final eventProvider = FutureProvider.family<FightEvent, String>(
   (ref, eventId) => ref.watch(eventsRepositoryProvider).getEvent(eventId),
+);
+
+final fightProvider = FutureProvider.family<Fight, String>(
+  (ref, fightId) => ref.watch(eventsRepositoryProvider).getFight(fightId),
 );

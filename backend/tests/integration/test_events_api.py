@@ -51,6 +51,13 @@ async def test_event_list_detail_and_ordered_card(
         assert card.status_code == HTTPStatus.OK
         assert card.json() == fights
 
+        fight = await client.get(f"/api/v1/fights/{fights[0]['id']}")
+        assert fight.status_code == HTTPStatus.OK
+        assert fight.json() == fights[0]
+
+        missing_fight = await client.get(f"/api/v1/fights/{uuid4()}")
+        assert missing_fight.status_code == HTTPStatus.NOT_FOUND
+
         missing = await client.get(f"/api/v1/events/{uuid4()}")
         assert missing.status_code == HTTPStatus.NOT_FOUND
     finally:

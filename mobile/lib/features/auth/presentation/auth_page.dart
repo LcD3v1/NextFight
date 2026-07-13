@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nextfight/core/presentation/error_message.dart';
 import 'package:nextfight/features/auth/application/auth_controller.dart';
 import 'package:nextfight/l10n/app_localizations.dart';
@@ -155,6 +156,13 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           _registering ? strings.signIn : strings.createAccount,
                         ),
                       ),
+                      if (!_registering)
+                        TextButton(
+                          onPressed: auth.isLoading
+                              ? null
+                              : () => context.push('/forgot-password'),
+                          child: Text(strings.forgotPassword),
+                        ),
                     ],
                   ),
                 ),

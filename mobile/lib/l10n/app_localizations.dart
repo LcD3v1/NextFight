@@ -301,6 +301,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove'**
   String get remove;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPassword;
+
+  /// No description provided for @resetPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset password'**
+  String get resetPassword;
+
+  /// No description provided for @recoveryInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your account email. If it exists, we will send a secure recovery link.'**
+  String get recoveryInstructions;
+
+  /// No description provided for @sendRecoveryLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Send recovery link'**
+  String get sendRecoveryLink;
+
+  /// No description provided for @recoverySent.
+  ///
+  /// In en, this message translates to:
+  /// **'If the account exists, recovery instructions were sent.'**
+  String get recoverySent;
+
+  /// No description provided for @recoveryToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery token'**
+  String get recoveryToken;
+
+  /// No description provided for @passwordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Password changed. Sign in again.'**
+  String get passwordChanged;
 }
 
 class _AppLocalizationsDelegate

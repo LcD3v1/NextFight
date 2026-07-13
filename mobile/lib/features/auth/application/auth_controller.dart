@@ -50,6 +50,23 @@ class AuthController extends AsyncNotifier<AuthSession?> {
       }
     }
   }
+
+  Future<void> updateProfile({
+    String? displayName,
+    String? locale,
+    String? timezone,
+  }) async {
+    final current = state.value;
+    if (current == null) return;
+    final user = await ref.read(authRepositoryProvider).updateProfile(
+      displayName: displayName,
+      locale: locale,
+      timezone: timezone,
+    );
+    final updated = current.withUser(user);
+    await ref.read(sessionStorageProvider).save(updated);
+    state = AsyncData(updated);
+  }
 }
 
 final authControllerProvider =

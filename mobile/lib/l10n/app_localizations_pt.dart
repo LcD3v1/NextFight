@@ -112,4 +112,27 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get remove => 'Remover';
+
+  @override
+  String get forgotPassword => 'Esqueceu a senha?';
+
+  @override
+  String get resetPassword => 'Redefinir senha';
+
+  @override
+  String get recoveryInstructions =>
+      'Informe o e-mail da conta. Se ela existir, enviaremos um link seguro de recuperação.';
+
+  @override
+  String get sendRecoveryLink => 'Enviar link de recuperação';
+
+  @override
+  String get recoverySent =>
+      'Se a conta existir, as instruções de recuperação foram enviadas.';
+
+  @override
+  String get recoveryToken => 'Token de recuperação';
+
+  @override
+  String get passwordChanged => 'Senha alterada. Entre novamente.';
 }

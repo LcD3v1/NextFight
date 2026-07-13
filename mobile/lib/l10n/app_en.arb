@@ -34,5 +34,12 @@
   "loginSubtitle": "Choose the fight. We track the event for you.",
   "passwordRequirements": "Use at least 12 characters.",
   "versus": "vs",
-  "remove": "Remove"
+  "remove": "Remove",
+  "forgotPassword": "Forgot password?",
+  "resetPassword": "Reset password",
+  "recoveryInstructions": "Enter your account email. If it exists, we will send a secure recovery link.",
+  "sendRecoveryLink": "Send recovery link",
+  "recoverySent": "If the account exists, recovery instructions were sent.",
+  "recoveryToken": "Recovery token",
+  "passwordChanged": "Password changed. Sign in again."
 }

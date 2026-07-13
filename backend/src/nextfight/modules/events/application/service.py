@@ -89,6 +89,22 @@ class EventQueryService:
             for fight, red_athlete, blue_athlete in rows
         ]
 
+    async def get_fight(self, fight_id: UUID) -> FightResponse:
+        """Load one public fight with both athlete projections."""
+        red = aliased(Athlete)
+        blue = aliased(Athlete)
+        row = (
+            await self._session.execute(
+                select(Fight, red, blue)
+                .join(red, red.id == Fight.red_athlete_id)
+                .join(blue, blue.id == Fight.blue_athlete_id)
+                .where(Fight.id == fight_id)
+            )
+        ).one_or_none()
+        if row is None:
+            raise EventNotFoundError
+        return self._fight(*row)
+
     @staticmethod
     def _event(event: Event, organization: Organization) -> EventSummary:
         return EventSummary(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:nextfight/features/engagement/data/engagement_repository.dart';
 import 'package:nextfight/features/events/data/events_repository.dart';
@@ -104,6 +105,7 @@ class _FightTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => Card(
     child: ListTile(
+      onTap: () => context.push('/fights/${fight.id}'),
       contentPadding: const EdgeInsets.all(14),
       title: Text('${fight.redAthlete.name}  vs  ${fight.blueAthlete.name}'),
       subtitle: Text(
