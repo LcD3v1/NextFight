@@ -104,6 +104,22 @@ class CardOrderCommand(BaseModel):
     fight_ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
+class AlertDispatchCommand(BaseModel):
+    """Audited manual push dispatch for an existing user alert."""
+
+    model_config = ConfigDict(extra="forbid")
+    alert_id: UUID
+    idempotency_key: str = Field(min_length=8, max_length=120)
+    title: str = Field(min_length=1, max_length=180)
+    body: str = Field(min_length=1, max_length=500)
+
+
+class DispatchResponse(BaseModel):
+    """Number of device deliveries newly queued by a dispatch."""
+
+    queued: int
+
+
 class EntityResponse(BaseModel):
     """Generic typed identifier returned after administrative mutations."""
 

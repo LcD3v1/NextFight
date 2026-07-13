@@ -5,13 +5,16 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nextfight.core.config import Settings
 from nextfight.infrastructure.database.entities import (
+    Alert,
     AlertDelivery,
     Athlete,
     AuditLog,
+    Device,
     Event,
     EventChange,
     EventStatus,
@@ -22,6 +25,7 @@ from nextfight.infrastructure.database.entities import (
 )
 from nextfight.infrastructure.database.models import EntityMixin
 from nextfight.modules.admin.api.schemas import (
+    AlertDispatchCommand,
     AthleteCreate,
     DashboardResponse,
     EventCreate,
@@ -319,6 +323,55 @@ class AdminService:
                 .limit(limit)
             )
         )
+
+    async def dispatch_alert(self, payload: AlertDispatchCommand) -> int:
+        """Queue one audited manual alert for every enabled owned device."""
+        alert = await self._session.get(Alert, payload.alert_id)
+        if alert is None:
+            raise AdminNotFoundError
+        device_ids = list(
+            await self._session.scalars(
+                select(Device.id).where(
+                    Device.user_id == alert.user_id,
+                    Device.notifications_enabled.is_(True),
+                )
+            )
+        )
+        now = datetime.now(UTC)
+        queued = 0
+        for device_id in device_ids:
+            statement = (
+                insert(AlertDelivery)
+                .values(
+                    alert_id=alert.id,
+                    device_id=device_id,
+                    channel="push",
+                    idempotency_key=(f"admin:{payload.idempotency_key}:{device_id}"),
+                    status="pending",
+                    title=payload.title,
+                    body=payload.body,
+                    data={
+                        "type": "admin.alert",
+                        "fight_id": str(alert.fight_id),
+                    },
+                    attempts=0,
+                    next_attempt_at=now,
+                )
+                .on_conflict_do_nothing(index_elements=["idempotency_key"])
+                .returning(AlertDelivery.id)
+            )
+            if await self._session.scalar(statement) is not None:
+                queued += 1
+        self._audit(
+            "alert.dispatched",
+            "alert",
+            alert.id,
+            {
+                "idempotency_key": payload.idempotency_key,
+                "queued": queued,
+            },
+        )
+        return queued
 
     async def _locked[Entity: EntityMixin](
         self, entity_type: type[Entity], entity_id: UUID

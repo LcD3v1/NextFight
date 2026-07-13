@@ -6,13 +6,16 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nextfight.core.config import Settings
 from nextfight.infrastructure.database.entities import (
+    Alert,
+    AlertDelivery,
     Athlete,
     AuditLog,
+    Device,
     Event,
     EventChange,
     Fight,
@@ -161,6 +164,45 @@ async def test_admin_crud_live_control_rbac_and_audit(  # noqa: PLR0915
         )
         assert fight_state.status_code == HTTPStatus.CREATED
 
+        alert = await client.post(
+            "/api/v1/me/alerts",
+            headers=headers,
+            json={
+                "fight_id": str(created["fights"][0]),
+                "trigger_type": "next_fight",
+            },
+        )
+        assert alert.status_code == HTTPStatus.CREATED
+        device = await client.post(
+            "/api/v1/me/devices",
+            headers=headers,
+            json={
+                "platform": "android",
+                "push_token": f"admin-provider-token-{uuid4().hex}",
+                "app_version": "1.0.0",
+            },
+        )
+        assert device.status_code == HTTPStatus.CREATED
+        dispatch_payload = {
+            "alert_id": alert.json()["id"],
+            "idempotency_key": f"manual-{uuid4()}",
+            "title": "Manual operations update",
+            "body": "The fight status requires your attention.",
+        }
+        dispatch = await client.post(
+            "/api/v1/admin/alerts/dispatch",
+            headers=headers,
+            json=dispatch_payload,
+        )
+        assert dispatch.status_code == HTTPStatus.ACCEPTED
+        assert dispatch.json()["queued"] == 1
+        duplicate_dispatch = await client.post(
+            "/api/v1/admin/alerts/dispatch",
+            headers=headers,
+            json=dispatch_payload,
+        )
+        assert duplicate_dispatch.json()["queued"] == 0
+
         dashboard = await client.get("/api/v1/admin/dashboard", headers=headers)
         assert dashboard.status_code == HTTPStatus.OK
         assert dashboard.json()["live_events"] >= 1
@@ -226,6 +268,12 @@ async def _cleanup(
 ) -> None:
     fight_ids = created["fights"]
     event_ids = created["events"]
+    user_alert_ids = select(Alert.id).where(Alert.user_id == admin_id)
+    await session.execute(
+        delete(AlertDelivery).where(AlertDelivery.alert_id.in_(user_alert_ids))
+    )
+    await session.execute(delete(Alert).where(Alert.user_id == admin_id))
+    await session.execute(delete(Device).where(Device.user_id == admin_id))
     await session.execute(delete(Prediction).where(Prediction.fight_id.in_(fight_ids)))
     await session.execute(
         delete(FightStateEvent).where(FightStateEvent.fight_id.in_(fight_ids))

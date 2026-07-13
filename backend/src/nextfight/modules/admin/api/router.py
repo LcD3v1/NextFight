@@ -10,12 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nextfight.infrastructure.database.dependencies import get_database_session
 from nextfight.infrastructure.database.entities import User
 from nextfight.modules.admin.api.schemas import (
+    AlertDispatchCommand,
     AthleteAdminResponse,
     AthleteCreate,
     AuditLogResponse,
     CardOrderCommand,
     DashboardResponse,
     DeliveryAdminResponse,
+    DispatchResponse,
     EntityResponse,
     EventCreate,
     EventStateCommand,
@@ -270,6 +272,21 @@ async def deliveries(
     """Return recent push provider delivery outcomes."""
     items = await _service(session, request, actor).deliveries(limit)
     return [DeliveryAdminResponse.model_validate(item) for item in items]
+
+
+@router.post("/alerts/dispatch", status_code=HTTPStatus.ACCEPTED)
+async def dispatch_alert(
+    payload: AlertDispatchCommand,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    actor: AdminPrincipal,
+) -> DispatchResponse:
+    """Queue an idempotent manual push and record its privileged actor."""
+    try:
+        queued = await _service(session, request, actor).dispatch_alert(payload)
+    except AdminNotFoundError as error:
+        raise HTTPException(HTTPStatus.NOT_FOUND, NOT_FOUND) from error
+    return DispatchResponse(queued=queued)
 
 
 def _ensure_override_role(actor: User, *, override: bool) -> None:
